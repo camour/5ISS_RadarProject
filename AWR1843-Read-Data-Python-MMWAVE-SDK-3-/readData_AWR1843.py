@@ -2,9 +2,8 @@
 import serial
 import time
 import numpy as np
-#import pyqtgraph as pg
-#from pyqtgraph.Qt import QtGui
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Change the configuration file name
 configFileName = 'AWR1843config.cfg'
@@ -25,13 +24,10 @@ def serialConfig(configFileName):
     global Dataport
     # Open the serial ports for the configuration and the data ports
     
-    # Raspberry pi
-    #CLIport = serial.Serial('/dev/ttyACM0', 115200)
-    #Dataport = serial.Serial('/dev/ttyACM1', 921600)
+    # jetson or rasp pi
+    CLIport = serial.Serial('/dev/ttyACM0', 115200)
+    Dataport = serial.Serial('/dev/ttyACM1', 921600)
     
-    # Windows
-    CLIport = serial.Serial('COM4', 115200)
-    Dataport = serial.Serial('COM3', 921600)
 
     # Read the configuration file and send it to the board
     config = [line.rstrip('\r\n') for line in open(configFileName)]
@@ -52,12 +48,12 @@ def parseConfigFile(configFileName):
     config = [line.rstrip('\r\n') for line in open(configFileName)]
     for i in config:
         
-        # Split the line
+
         splitWords = i.split(" ")
         
-        # Hard code the number of antennas, change if other configuration is used
+        # Hard code the number of antennas
         numRxAnt = 4
-        numTxAnt = 3
+        numTxAnt = 2
         
         # Get the information about the profile configuration
         if "profileCfg" in splitWords[0]:
@@ -138,7 +134,7 @@ def readAndParseData18xx(Dataport, configParameters):
             if np.all(check == magicWord):
                 startIdx.append(loc)
                
-        # Check that startIdx is not empty
+        
         if startIdx:
             
             # Remove the data before the first start index
@@ -157,7 +153,7 @@ def readAndParseData18xx(Dataport, configParameters):
             # Read the total packet length
             totalPacketLen = np.matmul(byteBuffer[12:12+4],word)
             
-            # Check that all the packet has been read
+         
             if (byteBufferLength >= totalPacketLen) and (byteBufferLength != 0):
                 magicOK = 1
     
@@ -166,7 +162,7 @@ def readAndParseData18xx(Dataport, configParameters):
         # word array to convert 4 bytes to a 32 bit number
         word = [1, 2**8, 2**16, 2**24]
         
-        # Initialize the pointer index
+
         idX = 0
         
         # Read the header
@@ -223,6 +219,7 @@ def readAndParseData18xx(Dataport, configParameters):
                     idX += 4
                 
                 # Store the data in the detObj dictionary
+                # We mainly focus on the coordinates to get the distance and the velocity
                 detObj = {"numObj": numDetectedObj, "x": x, "y": y, "z": z, "velocity":velocity}
                 dataOK = 1
                 print(detObj.velocity)
@@ -284,8 +281,6 @@ def update():
             plt.draw()
             print('nombre : ' + str(detObj['numObj']))
             plt.pause(0.2)
-        #s.setData(x,y)
-        #QtGui.QApplication.processEvents()
     
     return dataOk
 
@@ -299,27 +294,7 @@ CLIport, Dataport = serialConfig(configFileName)
 # # Get the configuration parameters from the configuration file
 configParameters = parseConfigFile(configFileName)
 
-# # START QtAPPfor the plot
-#app = QtGui.QApplication([])
 
-
-# # Set the plot 
-# #pg.setConfigOption('background','w')
-# #win = pg.GraphicsLayoutWidget()
-# #win.setWindowTitle("test")
-# #win.resize(800,600)
-# #p = win.addPlot()
-# #p.addLegend()
-# #s= p.plot(pen=(None), symbolBrush=(0, 0, 255),symbolPen='b')
-# #p.setRange(xRange=[-0.5, 0.5], yRange=[0, 1.5])
-# #win.show()
-# #win = pg.GraphicsWindow(title="2D scatter plot")
-# #p = win.addPlot()
-# #p.setXRange(-0.5,0.5)
-# #p.setYRange(0,1.5)
-# #p.setLabel('left',text = 'Y position (m)')
-# #p.setLabel('bottom', text= 'X position (m)')
-# #s = p.plot([],[],pen=None,symbol='o')
     
    
 # # Main loop 
@@ -333,19 +308,11 @@ while True:
          dataOk = update()
          
         
-#         if dataOk:
-#             # Store the current frame into frameData
-#             frameData[currentIndex] = detObj
-#             currentIndex += 1
-        
-#         time.sleep(0.05) # Sampling frequency of 30 Hz
-        
 #     # Stop the program and close everything if Ctrl + c is pressed
     except KeyboardInterrupt:
          CLIport.write(('sensorStop\n').encode())
          CLIport.close()
          Dataport.close()
-#         #win.close()
          break
         
     
